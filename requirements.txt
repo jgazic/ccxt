@@ -1,1 +1,2 @@
 ccxt
+mysql-connector-python
