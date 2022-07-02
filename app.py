@@ -1,5 +1,10 @@
 import ccxt
 import mysql.connector
+from datetime import datetime 
+import json
+import pandas as pd
+import numpy as np 
+
 
 def create_database():
     mydb = mysql.connector.connect(
@@ -20,7 +25,7 @@ def create_table():
     )
 
     mycursor = mydb.cursor()
-    mycursor.execute("CREATE TABLE orderbook (exchange CHAR(20), bid DECIMAL(10,4), ask DECIMAL(10,4), timestamp TIMESTAMP)")
+    mycursor.execute("CREATE TABLE orderbook (exchange CHAR(20), bid DECIMAL(10,4), ask DECIMAL(10,4), timestamp DATETIME)")
 #create_database()
 #create_table()
 
@@ -34,12 +39,12 @@ def display_data():
     )
 
     mycursor = mydb.cursor()
-    mycursor.execute("SELECT * FROM orderbook")
+    mycursor.execute("SELECT bid, exchange  FROM orderbook WHERE timestamp >= DATE_SUB(NOW(),INTERVAL 1 MINUTE)")
 
     myresult = mycursor.fetchall()
-    print(myresult)
+    print (json.dumps(str(myresult),indent=4),) 
 
-def save_data(exchange1,bid1,ask1,timestamp1,exchange2,bid2,ask2,timestamp2):
+def save_data(exchange1,bid1,ask1,exchange2,bid2,ask2):
     mydb = mysql.connector.connect(
     host="localhost",
     user="root",
@@ -49,26 +54,45 @@ def save_data(exchange1,bid1,ask1,timestamp1,exchange2,bid2,ask2,timestamp2):
 
     mycursor = mydb.cursor()
 
-    sql = "INSERT INTO orderbooks (exchange, bid, ask, timestamp) VALUES (%s, %s, %s, %s)"
+    now = datetime.now()
+    id = 1
+    formatted_date = now.strftime('%Y-%m-%d %H:%M:%S')
+    sql = "INSERT INTO orderbook (exchange, bid, ask, timestamp) VALUES (%s, %s, %s, %s)"
     val = [
-  (f'{exchange1}', f'{bid1}', f'{ask1}', f'{timestamp1}'),
-  (f'{exchange2}', f'{bid2}', f'{ask2}', f'{timestamp2}'),
+  (exchange1, bid1, ask1, formatted_date),
+  (exchange2, bid2, ask2, formatted_date),
 ]
-
+    mycursor.executemany(sql, val)
+    mydb.commit()
+    print('saved')
+    print(formatted_date)
 
 def get_orderbook():
-    exchange1 = ccxt.binance()
-    exchange2 = ccxt.kucoin()
     while True:
+        exchange1 = ccxt.binance()
+        exchange2 = ccxt.kucoin()
 
         orderbook1 = exchange1.fetch_order_book('BTC/USDT')
         orderbook2 = exchange2.fetch_order_book('BTC/USDT')
-        
-        timestamp = exchange1.iso8601(exchange1.milliseconds())
-        
-        print(orderbook1['asks'][0], orderbook1['bids'][0])
-        print(f"Kucoin {orderbook2['asks'][0], orderbook2['bids'][0]}")
 
+        dict1 = orderbook1
+        highest_bid1 = dict1.get('bids')[0]
+        lowest_ask1 = dict1.get('asks')[0]
+
+        dict2 = orderbook2
+        highest_bid2 = dict2.get('bids')[0]
+        lowest_ask2 = dict2.get('asks')[0]
+        
+        diff_bid = highest_bid1[0] - highest_bid2[0]
+        now = datetime.now()
+        
+        print(f'{exchange1}\n bid:{highest_bid1[0]}\n quantity: {highest_bid1[1]}\n ask:{lowest_ask1[0]}\n quantity: {lowest_ask1[1]}\n ')
+        print(f'{exchange2}\n bid:{highest_bid2[0]}\n quantity: {highest_bid2[1]}\n ask:{lowest_ask2[0]}\n quantity: {lowest_ask2[1]}\n ')
+        print(diff_bid)
+        print(now)
+
+        #modify database to also store diff, this does not affect performance much
 
 get_orderbook()
+
 
