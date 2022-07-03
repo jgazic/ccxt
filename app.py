@@ -1,7 +1,7 @@
 import ccxt
 import mysql.connector
 from datetime import datetime 
-import json
+import time
 import pandas as pd
 import numpy as np 
 
@@ -68,7 +68,7 @@ def save_data(exchange1,bid1,ask1,exchange2,bid2,ask2, diff_bid, diff_ask):
     mydb.commit()
     print('saved')
     print(formatted_date)
-
+    time.sleep(5)
 #create_database()
 #create_table()
 while True:
