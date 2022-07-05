@@ -1,2 +1,3 @@
 ccxt
 mysql-connector-python
+matplotlib
